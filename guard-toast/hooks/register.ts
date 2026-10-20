@@ -29,6 +29,6 @@ export const register: Register = on => {
     }
     return result
   })
-    // 알림에서 문제가 나도 훅들의 결정에는 끼어들지 않는다 (이 mod 가 없던 것처럼)
-    .catch(() => undefined)
+    // 알림에서 문제가 나도 훅들의 결정은 그대로 돌려준다 (이 mod 가 없던 것처럼)
+    .catch(($, e, next) => next(e))
 }

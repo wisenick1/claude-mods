@@ -49,6 +49,16 @@ test('긴 이유는 잘라서 보여준다', async ($, on) => {
   expect(toasts[0].endsWith('…')).toBe(true)
 })
 
+test('토스트에서 에러가 나도 차단은 그대로 유지된다', async ($, on) => {
+  on('classic.PreToolUse', () => ({ deny: '[secret-guard] 비밀값 파일입니다.' }))
+  on('tool.call', () => ({ result: { text: 'ok' } }))
+  on('ui.toast', () => { throw new Error('toast failed') })
+
+  const result = await $.tool.call(READ_ENV)
+
+  expect(result.deny).toBe('[secret-guard] 비밀값 파일입니다.')
+})
+
 test('막지 않으면 토스트를 띄우지 않는다', async ($, on) => {
   const toasts = fakeEngine(on, () => ({}))
 
