@@ -1,6 +1,6 @@
 {
   "name": "guard-toast",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "settings 훅(PreToolUse)이 도구 실행을 막으면 어떤 훅이 무엇을 막았는지 토스트로 알려준다",
   "author": { "name": "Jae" }
 }
