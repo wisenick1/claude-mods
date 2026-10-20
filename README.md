@@ -7,6 +7,13 @@
 | [branch-band](branch-band) | 프롬프트 위에 현재 git 브랜치, Jira 이슈 키(`PROJ-12` 형태), 기준 브랜치(`origin/HEAD`) 대비 커밋 수, 미커밋 파일 수, push 전 리뷰 상태를 띄운다. 5초마다 다시 읽는다. 리뷰 상태는 [아래 설정](#branch-band-push-전-리뷰-상태)을 한 저장소에서만 보인다. |
 | [flyway-panel](flyway-panel) | 사이드 패널에 Flyway 마이그레이션(`db/migration/V{n}__*.sql`)을 **머지됨 / 내 작업 / 팀원 작업(머지 전 원격 브랜치)**으로 나눠 보여주고, 다음 번호와 번호 충돌을 알려준다. 3분마다 `git fetch`(작업 트리는 건드리지 않음)로 팀원 브랜치를 확인하고, 내 작업과 번호가 겹치면 알림을 띄운다. `/migrations`로 패널 열기·즉시 확인. |
 
+## 동작 환경
+
+- Claude Code 터미널 2.1.287 이상, 데스크톱 앱(Code 탭) 2.1.286 이상. 버전은 `/status` 로 확인
+- branch-band 의 띠는 **터미널과 데스크톱 앱**에서만 보인다 (VS Code 확장 채팅 패널에는 프롬프트 위 띠가 없다)
+- flyway-panel 의 패널은 터미널·데스크톱 앱·VS Code 확장(2.1.299 이상)에서 보인다
+- `claude -p`, Agent SDK, 클라우드 세션(claude.ai/code)에서는 그려지지 않는다
+
 ## 설치
 
 데스크톱 앱 (Code 탭): 입력창 옆 **+** → **Plugins** → **Add marketplace**에 `wisenick1/claude-mods` 입력 (로컬에서 개발할 때는 이 폴더 경로) → **Add plugin**에서 원하는 mod 선택
@@ -24,6 +31,44 @@
 claude plugin install branch-band --marketplace wisenick1/claude-mods
 claude plugin install flyway-panel --marketplace wisenick1/claude-mods
 ```
+
+### 업데이트·끄기
+
+| 설치한 곳 | 새 버전 반영 |
+| --- | --- |
+| GitHub (`wisenick1/claude-mods`) | `/plugin` 에서 업데이트, 또는 셸에서 `claude plugin update <mod>@claude-mods` 후 새 세션 |
+| 로컬 폴더 | 폴더를 직접 읽으므로 고친 뒤 **새 세션** 또는 `/reload-plugins` |
+
+끄거나 지우려면 `/plugin` → Installed 탭 (데스크톱 앱은 **+** → **Plugins**).
+
+### 실행하는 명령
+
+mod 는 내 계정 권한으로 실행된다. 이 mod 들이 실행하는 것은 아래 git 명령뿐이고, 파일을 쓰거나 다른 네트워크 요청을 하지 않는다.
+
+| mod | 명령 |
+| --- | --- |
+| branch-band (5초마다) | `git status --porcelain=v2 --branch`, `git rev-parse`, `git rev-list --count`, `.git/.reviewed-sha` 읽기 |
+| flyway-panel (15초마다) | `git rev-parse`, `git ls-tree`, `git ls-files`, `git branch -r --no-merged` |
+| flyway-panel (3분마다, `/migrations`) | `git fetch --prune origin` — 원격 브랜치 정보만 받고 내 작업 트리·로컬 브랜치는 바꾸지 않는다 |
+
+## branch-band
+
+- **Jira 키**: 브랜치 이름에서 `대문자로 시작하는 프로젝트 키-숫자`(`PROJ-12`, `AB12CD-7`)를 찾는다. `fix/UTF-8` 처럼 키가 아닌 것도 키로 잡힐 수 있다.
+- **기준 브랜치 대비 커밋 수가 안 보이면**: 원격 기본 브랜치(`origin/HEAD`)가 설정되지 않은 저장소다. 아래로 설정한다.
+  ```
+  git remote set-head origin -a
+  ```
+  기본 브랜치가 아닌 다른 브랜치(예: `dev`)를 기준으로 쓰려면 `git remote set-head origin dev`.
+- **미커밋 N**: 커밋 안 된 파일 수 (새 파일 포함, `.gitignore` 된 파일 제외)
+
+## flyway-panel
+
+- `db/migration/V{번호}__{설명}.sql` 형식의 Flyway 버전 마이그레이션을 찾는다. 기준 브랜치(`origin/HEAD`)에 이런 파일이 하나도 없는 저장소에서는 패널을 열지 않는다.
+- 패널은 세션이 시작될 때 열린다. 닫았으면 `/migrations` 로 다시 연다 (원격도 바로 다시 확인).
+- **팀원 작업**은 기준 브랜치에 아직 머지되지 않은 **원격 브랜치**에서 찾는다. 팀원이 아직 push 하지 않은 작업은 알 수 없다.
+- **다음 번호**는 머지됨·내 작업·팀원 작업을 통틀어 가장 큰 번호 + 1 이다.
+- **⚠ 충돌**: 같은 번호를 서로 다른 파일이 쓰고 있다. 내 작업이 충돌에 새로 걸리면 알림이 뜬다. 먼저 머지될 쪽을 팀원과 정하고, 늦게 머지되는 쪽이 번호를 올린다.
+- 상단에 "원격 저장소를 받아오지 못했어요"가 보이면 `git fetch` 가 실패한 것이다 (네트워크, 인증). 셸에서 `git fetch origin` 이 되는지 확인한다.
 
 ## branch-band: push 전 리뷰 상태
 
