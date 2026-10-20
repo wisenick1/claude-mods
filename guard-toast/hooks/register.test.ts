@@ -56,7 +56,9 @@ test('토스트에서 에러가 나도 차단은 그대로 유지된다', async 
 
   const result = await $.tool.call(READ_ENV)
 
-  expect(result.deny).toBe('[secret-guard] 비밀값 파일입니다.')
+  // settings 훅의 차단은 도구 결과의 에러로 모델에 전달된다
+  expect(result.isError).toBe(true)
+  expect(result.text).toBe('[secret-guard] 비밀값 파일입니다.')
 })
 
 test('막지 않으면 토스트를 띄우지 않는다', async ($, on) => {
