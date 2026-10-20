@@ -1,6 +1,6 @@
 {
   "name": "branch-band",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "프롬프트 위에 현재 git 브랜치, Jira 이슈 키(PROJ-12 형태), 기준 브랜치 대비 커밋 수, 미커밋 파일 수, push 전 리뷰 상태를 띄운다",
   "author": { "name": "Jae" },
   "types": "./types/index.d.ts"

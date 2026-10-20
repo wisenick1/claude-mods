@@ -7,7 +7,7 @@ export type BranchInfo = {
   ahead: number | null
   // 커밋 안 된 파일 수 (untracked 포함)
   dirty: number
-  // HEAD 가 <git-dir>/.reviewed-sha 와 같은지. push 할 커밋이 없으면 null
+  // HEAD 가 <git-dir>/.reviewed-sha 와 같은지. 그 파일이 없거나 push 할 커밋이 없으면 null
   reviewed: boolean | null
 }
 

@@ -8,6 +8,7 @@ const BAND = {
 
 const HEAD = 'a'.repeat(40)
 
+// reviewedSha: null = .reviewed-sha 파일 없음(리뷰 기록 안 씀), '' = 빈 파일(쓰기로 했지만 기록 전)
 type Repo = { branch: string; ahead: number; dirty: number; reviewedSha: string | null }
 
 // 엔진 대신 git 결과·파일 읽기·세션 시작을 흉내 낸다. 반환된 repo 를 바꾸면 checkout·commit 을 흉내 낸다.
@@ -74,9 +75,21 @@ test('기준 브랜치 대비 커밋 수와 미커밋 파일 수를 보여준다
   await ui.unmount()
 })
 
-test('push 할 커밋이 있으면 리뷰 기록과 HEAD 를 비교해 리뷰 상태를 보여준다', async ($, on) => {
+test('.reviewed-sha 파일이 없는 저장소에서는 리뷰 상태를 표시하지 않는다', async ($, on) => {
+  mock.clock(on)
+  fakeRepo(on, { branch: 'feature/back/PROJ-12-login-api', ahead: 3, reviewedSha: null })
+  await $.session.start({ cwd: '.', surface: 'desktop', isInteractive: true })
+
+  const ui = await band($)
+  expect(await ui.find({ type: 'Text', text: /dev 대비 커밋 3/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /리뷰/ })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('리뷰 기록을 쓰는 저장소에서 push 할 커밋이 있으면 기록과 HEAD 를 비교해 리뷰 상태를 보여준다', async ($, on) => {
   const clock = mock.clock(on)
-  const repo = fakeRepo(on, { branch: 'feature/back/PROJ-12-login-api', ahead: 1 })
+  // 빈 .reviewed-sha = 리뷰 기록을 쓰기로 했지만 아직 기록 전
+  const repo = fakeRepo(on, { branch: 'feature/back/PROJ-12-login-api', ahead: 1, reviewedSha: '' })
   await $.session.start({ cwd: '.', surface: 'desktop', isInteractive: true })
 
   let ui = await band($)

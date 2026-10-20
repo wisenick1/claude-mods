@@ -36,17 +36,18 @@ async function readInfo($: EngineInterface): Promise<BranchInfo | null> {
   const aheadText = base ? await git($, 'rev-list', '--count', `${base}..HEAD`) : null
   const ahead = aheadText === null ? null : Number(aheadText)
 
-  // push 할 커밋이 있을 때만 리뷰 상태를 본다: HEAD 가 <git-dir>/.reviewed-sha 와 같으면 리뷰 완료
+  // 리뷰 상태는 <git-dir>/.reviewed-sha 파일이 있는 저장소(리뷰 기록을 쓰기로 한 곳)에서,
+  // push 할 커밋이 있을 때만 본다. HEAD 가 파일에 적힌 SHA 와 같으면 리뷰 완료 (빈 파일 = 아직 기록 없음)
   let reviewed: boolean | null = null
   if (ahead) {
     const gitDir = await git($, 'rev-parse', '--git-dir')
-    let recorded = ''
+    let recorded: string | null = null
     try {
-      recorded = gitDir ? (await $.fs.read(`${gitDir}/.reviewed-sha`)).trim() : ''
+      recorded = gitDir ? (await $.fs.read(`${gitDir}/.reviewed-sha`)).trim() : null
     } catch {
-      // 기록 없음
+      // 파일 없음: 이 저장소는 리뷰 기록을 쓰지 않는다
     }
-    reviewed = recorded !== '' && recorded === head
+    reviewed = recorded === null ? null : recorded !== '' && recorded === head
   }
 
   return {
