@@ -120,6 +120,18 @@ git rev-parse HEAD > "$(git rev-parse --git-dir)/.reviewed-sha"
 
 ## 개발
 
+설치한 mod 는 캐시 복사본을 읽어서, 고칠 때마다 버전 올림 → 업데이트 → 새 세션을 거쳐야 한다. 자주 고칠 때는 원본 폴더를 직접 연결한 세션을 띄운다.
+
+```
+claude --plugin-dir ./flyway-panel
+```
+
+- 이 세션은 원본 폴더를 바로 읽고, 파일을 고치면 다시 로드한다. 버전을 올리거나 업데이트할 필요가 없다
+- 같은 mod 가 설치본으로도 켜져 있으면 두 번 동작할 수 있으니, 개발하는 동안은 `/plugin` 에서 설치본을 꺼 둔다
+- 다 고쳤으면 버전을 올려 커밋·push 하고 [업데이트·끄기](#업데이트끄기) 순서대로 설치본에 반영한다
+
+push 전 확인:
+
 ```
 claude plugin validate <mod>
 claude plugin test <mod>
