@@ -122,6 +122,11 @@ test('세션 시작 뒤에 화면이 붙으면 패널을 다시 연다', async (
 
   expect(opens.length).toBe(before + 1)
   expect(opens.at(-1)).toBe('flyway-panel')
+
+  // 세션 시작 때 걸어 둔 fetch 가 테스트가 끝난 뒤 돌지 않도록, 패널을 그려 보며 마무리를 기다린다
+  const ui = await $.ui.mount({ plugin: 'flyway-panel', surface: 'desktop', ...PANE })
+  expect(await ui.find({ type: 'Text', text: /V5/ })).toBeDefined()
+  await ui.unmount()
 })
 
 test('Flyway 마이그레이션이 없는 저장소에서는 패널에 안내만 보여준다', async ($, on) => {
