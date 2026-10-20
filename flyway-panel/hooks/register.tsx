@@ -125,6 +125,14 @@ export const register: Register = on => {
     return result
   })
 
+  // 데스크톱 앱은 session.start 뒤에 화면이 붙어서 그때 연 패널이 no-surface 로 안 뜰 수 있다.
+  // 화면이 붙을 때 다시 연다 (이미 열려 있으면 제목만 다시 정해지고 그대로다)
+  on('session.attach', async ($, e, next) => {
+    const result = await next(e)
+    if (await read($, snapshot)) void $.ui.open({ id: PANE, title: TITLE })
+    return result
+  })
+
   // Claude 가 새 마이그레이션을 만들거나 브랜치를 바꿨을 때 바로 반영
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)

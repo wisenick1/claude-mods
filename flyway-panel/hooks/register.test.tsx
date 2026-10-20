@@ -24,6 +24,7 @@ function fakeRepo(on: On, initial: Partial<Repo> = {}) {
   const ok = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '' } })
   const paths = (names: string[]) => names.map(n => `${DIR}/${n}`).concat('README.md').join('\n')
   const toasts: string[] = []
+  const opens: string[] = []
 
   on('process.run', (_$, e) => {
     const [, cmd, ...rest] = e.argv
@@ -41,10 +42,11 @@ function fakeRepo(on: On, initial: Partial<Repo> = {}) {
   })
   on('session.start', () => ({ cwd: '.' }))
   on('command.register', () => ({ value: undefined }))
-  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('session.attach', (_$, e) => ({ clientId: e.clientId }))
+  on('ui.open', (_$, e) => { opens.push(e.id); return { value: { isPlaced: true } } })
   on('ui.toast', (_$, e) => { toasts.push(e.text); return { value: undefined } })
   on('ui.render', () => null)
-  return { repo, toasts }
+  return { repo, toasts, opens }
 }
 
 const MERGED = ['V1__init_schema.sql', 'V2__seed_dummy_user.sql', 'V3__remove_math_quiz.sql', 'V4__restore_math_quiz.sql']
@@ -108,6 +110,18 @@ test('/migrations 는 패널을 열고 원격을 다시 받아온 뒤 다음 번
   const result = await $.command.run({ command: 'migrations', args: '' })
   expect(result.text).toMatch(/V5/)
   expect(repo.fetches).toBeGreaterThan(before)
+})
+
+test('세션 시작 뒤에 화면이 붙으면 패널을 다시 연다', async ($, on) => {
+  mock.clock(on)
+  const { opens } = fakeRepo(on, { merged: MERGED })
+  await start($)
+  const before = opens.length
+
+  await $.session.attach({ surface: 'desktop', clientId: 'desktop:default' })
+
+  expect(opens.length).toBe(before + 1)
+  expect(opens.at(-1)).toBe('flyway-panel')
 })
 
 test('Flyway 마이그레이션이 없는 저장소에서는 패널에 안내만 보여준다', async ($, on) => {
