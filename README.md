@@ -4,7 +4,7 @@
 
 | mod | 설명 |
 | --- | --- |
-| [branch-band](branch-band) | 프롬프트 위에 현재 git 브랜치와 Jira 이슈 키(`PROJ-12` 형태)를 띄운다. 5초마다 브랜치를 다시 읽는다. |
+| [branch-band](branch-band) | 프롬프트 위에 현재 git 브랜치, Jira 이슈 키(`PROJ-12` 형태), 기준 브랜치(`origin/HEAD`) 대비 커밋 수, 미커밋 파일 수, push 전 리뷰 상태(`.git/.reviewed-sha` 와 HEAD 비교)를 띄운다. 5초마다 다시 읽는다. |
 
 ## 설치
 

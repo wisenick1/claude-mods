@@ -9,28 +9,67 @@ const POLL_MS = 5000
 
 const info = atom({ plugin: 'branch-band', key: 'info' } as const, null)
 
-// 현재 브랜치를 읽어 바뀌었을 때만 저장한다 (같은 값이면 다시 그리지 않음)
-async function refresh($: EngineInterface) {
-  let current: BranchInfo | null = null
+async function git($: EngineInterface, ...args: string[]): Promise<string | null> {
   try {
-    const { exitCode, stdout } = await $.process.run(
-      ['git', 'rev-parse', '--abbrev-ref', 'HEAD'], { timeoutMs: 3000 })
-    const branch = stdout.trim()
-    if (exitCode === 0 && branch) {
-      current = { branch, issueKey: branch.match(ISSUE_KEY)?.[0] ?? null }
-    }
+    const { exitCode, stdout } = await $.process.run(['git', ...args], { timeoutMs: 3000 })
+    return exitCode === 0 ? stdout.trim() : null
   } catch {
-    // git 이 없거나 저장소가 아니면 띠를 숨긴다
+    return null
+  }
+}
+
+// 브랜치·기준 브랜치 대비 커밋 수·미커밋 파일 수·리뷰 기록을 한 번에 읽는다
+async function readInfo($: EngineInterface): Promise<BranchInfo | null> {
+  // porcelain v2: "# branch.oid <sha>", "# branch.head <name>", 그 뒤로 변경 파일 한 줄씩
+  const status = await git($, 'status', '--porcelain=v2', '--branch')
+  if (status === null) return null // git 이 없거나 저장소가 아니면 띠를 숨긴다
+
+  const lines = status.split('\n').filter(Boolean)
+  const header = (key: string) => lines.find(l => l.startsWith(`# branch.${key} `))?.slice(`# branch.${key} `.length)
+  const branch = header('head')
+  const head = header('oid')
+  if (!branch) return null
+  const dirty = lines.filter(l => !l.startsWith('#')).length
+
+  // 기준 브랜치는 원격 기본 브랜치(origin/HEAD)로 정한다. 이 저장소에선 origin/dev
+  const base = await git($, 'rev-parse', '--abbrev-ref', 'origin/HEAD')
+  const aheadText = base ? await git($, 'rev-list', '--count', `${base}..HEAD`) : null
+  const ahead = aheadText === null ? null : Number(aheadText)
+
+  // push 할 커밋이 있을 때만 리뷰 상태를 본다: HEAD 가 <git-dir>/.reviewed-sha 와 같으면 리뷰 완료
+  let reviewed: boolean | null = null
+  if (ahead) {
+    const gitDir = await git($, 'rev-parse', '--git-dir')
+    let recorded = ''
+    try {
+      recorded = gitDir ? (await $.fs.read(`${gitDir}/.reviewed-sha`)).trim() : ''
+    } catch {
+      // 기록 없음
+    }
+    reviewed = recorded !== '' && recorded === head
   }
 
+  return {
+    branch,
+    issueKey: branch.match(ISSUE_KEY)?.[0] ?? null,
+    base,
+    ahead,
+    dirty,
+    reviewed,
+  }
+}
+
+// 값이 바뀌었을 때만 저장한다 (같은 값이면 다시 그리지 않음)
+async function refresh($: EngineInterface) {
+  const current = await readInfo($)
   const prev = await read($, info)
-  if (prev?.branch !== current?.branch) {
+  if (JSON.stringify(prev) !== JSON.stringify(current)) {
     await update($, info, () => current)
   }
 }
 
 export const register: Register = on => {
-  // 세션 시작 때 한 번 읽고, 터미널에서 직접 checkout 해도 반영되도록 주기적으로 다시 읽는다
+  // 세션 시작 때 한 번 읽고, 터미널에서 직접 checkout·commit 해도 반영되도록 주기적으로 다시 읽는다
   on('session.start', async ($, e, next) => {
     const result = await next(e)
     await refresh($)
@@ -38,7 +77,7 @@ export const register: Register = on => {
     return result
   })
 
-  // Claude 가 checkout 했을 때 바로 반영
+  // Claude 가 checkout·commit 했을 때 바로 반영
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
     await refresh($)
@@ -52,6 +91,8 @@ export const register: Register = on => {
     }
 
     const { Box, Text } = $.ui.resolve(e)
+    const sep = <Text dimColor>  │  </Text>
+    const baseName = current.base?.replace(/^origin\//, '')
 
     return (
       <Box>
@@ -59,6 +100,13 @@ export const register: Register = on => {
         {current.issueKey
           ? <Text color="cyan">  {current.issueKey}</Text>
           : <Text dimColor>  (이슈 키 없음)</Text>}
+        {current.ahead !== null && current.ahead > 0 && sep}
+        {current.ahead !== null && current.ahead > 0 && <Text>{baseName} 대비 커밋 {current.ahead}</Text>}
+        {current.dirty > 0 && sep}
+        {current.dirty > 0 && <Text color="yellow">미커밋 {current.dirty}</Text>}
+        {current.reviewed !== null && sep}
+        {current.reviewed === true && <Text color="green">✓ 리뷰됨</Text>}
+        {current.reviewed === false && <Text color="yellow">🔍 리뷰 필요</Text>}
       </Box>
     )
   })
