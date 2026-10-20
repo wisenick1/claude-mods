@@ -37,10 +37,11 @@ claude plugin install guard-toast --marketplace wisenick1/claude-mods
 
 ### 업데이트·끄기
 
-| 설치한 곳 | 새 버전 반영 |
-| --- | --- |
-| GitHub (`wisenick1/claude-mods`) | `/plugin` 에서 업데이트, 또는 셸에서 `claude plugin update <mod>@claude-mods` 후 새 세션 |
-| 로컬 폴더 | 폴더를 직접 읽으므로 고친 뒤 **새 세션** 또는 `/reload-plugins` |
+GitHub 로 설치했든 로컬 폴더로 설치했든, 세션은 설치 시점에 복사해 둔 캐시(`~/.claude/plugins/cache/claude-mods/<mod>/<버전>/`)를 읽는다. 원본 폴더를 고쳐도 바로 반영되지 않는다.
+
+1. mod 를 고쳤으면 그 mod 의 `.claude-plugin/plugin.json` 에서 `version` 을 올린다 (버전이 같으면 업데이트해도 옛 캐시를 계속 쓸 수 있다)
+2. `/plugin` (데스크톱 앱은 **+** → **Plugins**) 에서 마켓플레이스와 mod 를 업데이트한다. 셸에서는 `claude plugin update <mod>@claude-mods`
+3. 새 세션을 연다
 
 끄거나 지우려면 `/plugin` → Installed 탭 (데스크톱 앱은 **+** → **Plugins**).
 
