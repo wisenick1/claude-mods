@@ -12,6 +12,11 @@
       "name": "flyway-panel",
       "source": "./flyway-panel",
       "description": "Flyway 마이그레이션(V{n}__*.sql)을 머지됨/내 작업/팀원 작업으로 나눠 패널에 보여주고, 다음 번호와 번호 충돌을 알려준다"
+    },
+    {
+      "name": "guard-toast",
+      "source": "./guard-toast",
+      "description": "settings 훅(PreToolUse)이 도구 실행을 막으면 어떤 훅이 무엇을 막았는지 토스트로 알려준다"
     }
   ]
 }

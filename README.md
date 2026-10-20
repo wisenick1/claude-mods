@@ -6,6 +6,7 @@
 | --- | --- |
 | [branch-band](branch-band) | 프롬프트 위에 현재 git 브랜치, Jira 이슈 키(`PROJ-12` 형태), 기준 브랜치(`origin/HEAD`) 대비 커밋 수, 미커밋 파일 수, push 전 리뷰 상태를 띄운다. 5초마다 다시 읽는다. 리뷰 상태는 [아래 설정](#branch-band-push-전-리뷰-상태)을 한 저장소에서만 보인다. |
 | [flyway-panel](flyway-panel) | 사이드 패널에 Flyway 마이그레이션(`db/migration/V{n}__*.sql`)을 **머지됨 / 내 작업 / 팀원 작업(머지 전 원격 브랜치)**으로 나눠 보여주고, 다음 번호와 번호 충돌을 알려준다. 3분마다 `git fetch`(작업 트리는 건드리지 않음)로 팀원 브랜치를 확인하고, 내 작업과 번호가 겹치면 알림을 띄운다. `/migrations`로 패널 열기·즉시 확인. |
+| [guard-toast](guard-toast) | `.claude/settings*.json` 의 `PreToolUse` 훅이 도구 실행을 막으면 `🛡 secret-guard: .env 읽기 차단` 처럼 **어떤 훅이 무엇을 막았는지** 토스트로 알려준다. 막힌 내용이 대화 속 에러 한 줄로 지나가 놓치기 쉬운 걸 보완한다. |
 
 ## 동작 환경
 
@@ -23,6 +24,7 @@
 ```
 /plugin install branch-band --marketplace wisenick1/claude-mods
 /plugin install flyway-panel --marketplace wisenick1/claude-mods
+/plugin install guard-toast --marketplace wisenick1/claude-mods
 ```
 
 셸:
@@ -30,6 +32,7 @@
 ```
 claude plugin install branch-band --marketplace wisenick1/claude-mods
 claude plugin install flyway-panel --marketplace wisenick1/claude-mods
+claude plugin install guard-toast --marketplace wisenick1/claude-mods
 ```
 
 ### 업데이트·끄기
@@ -50,6 +53,7 @@ mod 는 내 계정 권한으로 실행된다. 이 mod 들이 실행하는 것은
 | branch-band (5초마다) | `git status --porcelain=v2 --branch`, `git rev-parse`, `git rev-list --count`, `.git/.reviewed-sha` 읽기 |
 | flyway-panel (15초마다) | `git rev-parse`, `git ls-tree`, `git ls-files`, `git branch -r --no-merged` |
 | flyway-panel (3분마다, `/migrations`) | `git fetch --prune origin` — 원격 브랜치 정보만 받고 내 작업 트리·로컬 브랜치는 바꾸지 않는다 |
+| guard-toast | 명령을 실행하지 않는다. 훅의 결정을 읽기만 하고 그대로 전달한다 |
 
 ## branch-band
 
@@ -69,6 +73,16 @@ mod 는 내 계정 권한으로 실행된다. 이 mod 들이 실행하는 것은
 - **다음 번호**는 머지됨·내 작업·팀원 작업을 통틀어 가장 큰 번호 + 1 이다.
 - **⚠ 충돌**: 같은 번호를 서로 다른 파일이 쓰고 있다. 내 작업이 충돌에 새로 걸리면 알림이 뜬다. 먼저 머지될 쪽을 팀원과 정하고, 늦게 머지되는 쪽이 번호를 올린다.
 - 상단에 "원격 저장소를 받아오지 못했어요"가 보이면 `git fetch` 가 실패한 것이다 (네트워크, 인증). 셸에서 `git fetch origin` 이 되는지 확인한다.
+
+## guard-toast
+
+- `PreToolUse` settings 훅이 막을 때(command 훅의 exit 2, 또는 `permissionDecision: "deny"`) 이유의 **첫 줄**을 6초 동안 보여준다.
+- 훅 이름은 이렇게 찾는다. 이유가 `[이름] ` 으로 시작하면 그 이름을 쓰는 게 가장 확실하다.
+  1. 이유가 `[secret-guard] .env 를 읽을 수 없습니다` 처럼 이름표로 시작하면 → `secret-guard`
+  2. 이유 안에 훅 스크립트 경로가 있으면 그 파일 이름 → `secret-guard.js` 면 `secret-guard`
+  3. 둘 다 없으면 도구 이름 → `Bash 훅`
+- 훅의 결정은 바꾸지 않는다. 알림에 실패해도 훅의 결정은 그대로 적용된다.
+- 조직이 Claude Code 를 관리(managed settings)하는 환경에서는, 조직이 지정하지 않은 플러그인의 `classic.PreToolUse` 훅이 실행되지 않아 알림이 뜨지 않는다.
 
 ## branch-band: push 전 리뷰 상태
 
