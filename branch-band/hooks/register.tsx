@@ -106,7 +106,7 @@ export const register: Register = on => {
         {current.dirty > 0 && <Text color="yellow">미커밋 {current.dirty}</Text>}
         {current.reviewed !== null && sep}
         {current.reviewed === true && <Text color="green">✓ 리뷰됨</Text>}
-        {current.reviewed === false && <Text color="yellow">🔍 리뷰 필요</Text>}
+        {current.reviewed === false && <Text color="red" bold>🔍 리뷰 필요</Text>}
       </Box>
     )
   })
