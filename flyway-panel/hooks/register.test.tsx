@@ -12,6 +12,7 @@ const PANE = {
 } as const
 
 type Repo = {
+  current: string // 현재 체크아웃한 브랜치
   merged: string[] // origin/dev 에 있는 파일 이름
   local: string[] // 내 작업 트리에만 있는 파일 이름
   branches: { name: string; author: string; files: string[] }[] // 머지 안 된 원격 브랜치
@@ -20,7 +21,7 @@ type Repo = {
 
 // 엔진 대신 git 을 흉내 낸다. 반환된 repo 를 바꾸면 팀원 push·내 작업을 흉내 낸다.
 function fakeRepo(on: On, initial: Partial<Repo> = {}) {
-  const repo: Repo = { merged: [], local: [], branches: [], fetches: 0, ...initial }
+  const repo: Repo = { current: 'feature/back/PROJ-1-me', merged: [], local: [], branches: [], fetches: 0, ...initial }
   const ok = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '' } })
   const paths = (names: string[]) => names.map(n => `${DIR}/${n}`).concat('README.md').join('\n')
   const toasts: string[] = []
@@ -28,7 +29,7 @@ function fakeRepo(on: On, initial: Partial<Repo> = {}) {
 
   on('process.run', (_$, e) => {
     const [, cmd, ...rest] = e.argv
-    if (cmd === 'rev-parse') return ok('origin/dev\n')
+    if (cmd === 'rev-parse') return ok(rest.at(-1) === 'HEAD' ? `${repo.current}\n` : 'origin/dev\n')
     if (cmd === 'fetch') { repo.fetches++; return ok('') }
     if (cmd === 'ls-files') return ok(paths([...repo.merged, ...repo.local]))
     if (cmd === 'branch') return ok(repo.branches.map(b => `origin/${b.name}\t${b.author}`).join('\n'))
@@ -98,6 +99,39 @@ test('내 작업과 팀원 작업이 같은 번호를 쓰면 충돌로 표시하
   expect(await ui.find({ type: 'Text', text: /⚠ V5 번호가 겹쳐요/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /다음 번호: V6/ })).toBeDefined()
   expect(toasts.some(t => /V5/.test(t))).toBe(true)
+  await ui.unmount()
+})
+
+test('내가 push 한 현재 브랜치의 같은 파일은 팀원 작업에 넣지 않고 충돌로 보지 않는다', async ($, on) => {
+  mock.clock(on)
+  const { toasts } = fakeRepo(on, {
+    merged: MERGED,
+    local: ['V5__add_share.sql'],
+    branches: [{ name: 'feature/back/PROJ-1-me', author: '나', files: ['V5__add_share.sql'] }],
+  })
+  await start($)
+
+  const ui = await $.ui.mount({ plugin: 'flyway-panel', surface: 'desktop', ...PANE })
+  expect(await ui.find({ type: 'Text', text: /V5\s+add_share/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /PROJ-1-me/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /번호가 겹쳐요/ })).toBeUndefined()
+  expect(toasts).toHaveLength(0)
+  await ui.unmount()
+})
+
+test('팀원 브랜치에 내 작업과 같은 파일이 있으면 충돌로 보지 않는다', async ($, on) => {
+  mock.clock(on)
+  const { toasts } = fakeRepo(on, {
+    merged: MERGED,
+    local: ['V5__add_share.sql'],
+    branches: [{ name: 'feature/back/PROJ-2-other', author: '팀원A', files: ['V5__add_share.sql'] }],
+  })
+  await start($)
+
+  const ui = await $.ui.mount({ plugin: 'flyway-panel', surface: 'desktop', ...PANE })
+  expect(await ui.find({ type: 'Text', text: /PROJ-2-other · 팀원A/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /번호가 겹쳐요/ })).toBeUndefined()
+  expect(toasts).toHaveLength(0)
   await ui.unmount()
 })
 

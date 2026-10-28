@@ -47,30 +47,27 @@ async function scan($: EngineInterface): Promise<MigrationSnapshot | null> {
   const localFiles = await git($, ['ls-files', '--cached', '--others', '--exclude-standard'])
   const local = parse(localFiles ?? '').filter(isNew).sort(byVersion)
 
+  // 내가 push 한 현재 브랜치(origin/{현재 브랜치})는 팀원 작업이 아니라 내 작업이라 뺀다
+  const current = (await git($, ['rev-parse', '--abbrev-ref', 'HEAD']))?.trim()
+  const mine = current ? `origin/${current}` : null
+
   const branches = await git($, [
     'branch', '-r', '--no-merged', base, '--format=%(refname:short)\t%(authorname)'])
   const remote: Migration[] = []
   for (const row of (branches ?? '').split('\n').filter(Boolean)) {
     const [branch, author] = row.split('\t')
-    if (!branch.includes('/') || branch.endsWith('/HEAD')) continue
+    if (!branch.includes('/') || branch.endsWith('/HEAD') || branch === mine) continue
     const files = await git($, ['ls-tree', '-r', '--name-only', branch])
     remote.push(...parse(files ?? '', { branch: branch.replace(/^origin\//, ''), author }).filter(isNew))
   }
   remote.sort(byVersion)
 
-  // 같은 번호가 머지됨/내 작업/팀원 브랜치 중 두 곳 이상에서 서로 다른 파일로 쓰이면 충돌
-  const owners = new Map<number, Set<string>>()
-  const own = (m: Migration, where: string) => {
-    const set = owners.get(m.version) ?? new Set<string>()
-    set.add(`${where}:${m.description}`)
-    owners.set(m.version, set)
-  }
-  merged.forEach(m => own(m, 'merged'))
-  local.forEach(m => own(m, 'local'))
-  remote.forEach(m => own(m, `remote:${m.branch}`))
-  const conflicts = [...owners].filter(([, set]) => set.size > 1).map(([v]) => v)
-
+  // 같은 번호가 서로 다른 파일로 쓰이면 충돌. 같은 파일이 여러 곳(내 작업·여러 브랜치)에 있는 건 충돌이 아니다
   const all = [...merged, ...local, ...remote]
+  const names = new Map<number, Set<string>>()
+  for (const m of all) names.set(m.version, (names.get(m.version) ?? new Set<string>()).add(m.description))
+  const conflicts = [...names].filter(([, set]) => set.size > 1).map(([v]) => v)
+
   const nextVersion = Math.max(0, ...all.map(m => m.version)) + 1
 
   return { base: base.replace(/^origin\//, ''), merged, local, remote, nextVersion, conflicts }
