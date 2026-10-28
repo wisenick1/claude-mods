@@ -1,6 +1,6 @@
 {
   "name": "flyway-panel",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Flyway 마이그레이션(V{n}__*.sql)을 머지됨/내 작업/팀원 작업으로 나눠 패널에 보여주고, 다음 번호와 번호 충돌을 알려준다",
   "author": { "name": "Jae" },
   "types": "./types/index.d.ts"
